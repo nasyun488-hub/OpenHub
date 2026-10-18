@@ -2,6 +2,8 @@ package com.thirtydegreesray.openhub.mvp.model;
 
 import android.support.annotation.NonNull;
 
+import java.util.ArrayList;
+
 /**
  * Created by ThirtyDegreesRay on 2017/11/14 11:37:23
  */
@@ -70,8 +72,13 @@ public class ActivityRedirectionModel {
     }
 
     public static ActivityRedirectionModel generateForCommit(@NonNull Event event, int index) {
-        return generateRepoInfo(event, Type.Commit)
-                .setCommitSha(event.getPayload().getCommits().get(index).getSha());
+        ActivityRedirectionModel model = generateRepoInfo(event, Type.Commit);
+        // GitHub may omit the commits field for PushEvent, fall back to repo level redirect
+        ArrayList<PushEventCommit> commits = event.getPayload().getCommits();
+        if (commits == null || index < 0 || index >= commits.size()) {
+            return model;
+        }
+        return model.setCommitSha(commits.get(index).getSha());
     }
 
     public static ActivityRedirectionModel generateForRelease(@NonNull Event event) {

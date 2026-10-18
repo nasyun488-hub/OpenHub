@@ -29,6 +29,7 @@ import com.thirtydegreesray.openhub.util.GitHubHelper;
 import com.thirtydegreesray.openhub.util.PrefUtils;
 import com.thirtydegreesray.openhub.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 
 import javax.inject.Inject;
@@ -99,6 +100,14 @@ public class ActivitiesAdapter extends BaseAdapter<ActivitiesAdapter.ViewHolder,
             String fullName = model.getRepo() != null ? model.getRepo().getFullName() : null;
             EventPayload.RefType refType = model.getPayload().getRefType();
             String action = model.getPayload() != null ? model.getPayload().getAction() : null;
+
+            // Unknown/new event types are deserialized to null by Gson, guard before switching
+            if (model.getType() == null) {
+                this.action.setVisibility(View.VISIBLE);
+                this.desc.setVisibility(View.GONE);
+                this.action.setText("");
+                return;
+            }
 
             switch (model.getType()) {
                 case CommitCommentEvent:
@@ -202,12 +211,14 @@ public class ActivitiesAdapter extends BaseAdapter<ActivitiesAdapter.ViewHolder,
                     actionStr = String.format(getString(R.string.push_to), branch, fullName);
 
                     descSpan = new SpannableStringBuilder("");
-                    int count = model.getPayload().getCommits().size();
+                    // GitHub may omit the commits field for PushEvent, guard against NPE
+                    ArrayList<PushEventCommit> commits = model.getPayload().getCommits();
+                    int count = commits == null ? 0 : commits.size();
                     int maxLines = 4;
                     int max = count > maxLines ? maxLines - 1 : count;
 
                     for (int i = 0; i < max; i++) {
-                        PushEventCommit commit = model.getPayload().getCommits().get(i);
+                        PushEventCommit commit = commits.get(i);
                         if (i != 0) {
                             descSpan.append("\n");
                         }
@@ -262,8 +273,12 @@ public class ActivitiesAdapter extends BaseAdapter<ActivitiesAdapter.ViewHolder,
         }
 
         private String getPullRequestReviewEventStr(String action){
-            EventPayload.PullRequestReviewEventActionType actionType =
-                    EventPayload.PullRequestReviewEventActionType.valueOf(action);
+            EventPayload.PullRequestReviewEventActionType actionType;
+            try {
+                actionType = EventPayload.PullRequestReviewEventActionType.valueOf(action);
+            } catch (IllegalArgumentException e) {
+                return getString(R.string.submitted_pull_request_review_at);
+            }
             switch (actionType){
                 case submitted:
                     return getString(R.string.submitted_pull_request_review_at);
@@ -277,8 +292,12 @@ public class ActivitiesAdapter extends BaseAdapter<ActivitiesAdapter.ViewHolder,
         }
 
         private String getPullRequestReviewCommentEventStr(String action){
-            EventPayload.PullRequestReviewCommentEventActionType actionType =
-                    EventPayload.PullRequestReviewCommentEventActionType.valueOf(action);
+            EventPayload.PullRequestReviewCommentEventActionType actionType;
+            try {
+                actionType = EventPayload.PullRequestReviewCommentEventActionType.valueOf(action);
+            } catch (IllegalArgumentException e) {
+                return getString(R.string.created_pull_request_comment_at);
+            }
             switch (actionType){
                 case created:
                     return getString(R.string.created_pull_request_comment_at);
@@ -292,7 +311,12 @@ public class ActivitiesAdapter extends BaseAdapter<ActivitiesAdapter.ViewHolder,
         }
 
         private String getMemberEventStr(String action){
-            EventPayload.MemberEventActionType actionType = EventPayload.MemberEventActionType.valueOf(action);
+            EventPayload.MemberEventActionType actionType;
+            try {
+                actionType = EventPayload.MemberEventActionType.valueOf(action);
+            } catch (IllegalArgumentException e) {
+                return getString(R.string.added_member_to);
+            }
             switch (actionType){
                 case added:
                     return getString(R.string.added_member_to);
@@ -306,7 +330,12 @@ public class ActivitiesAdapter extends BaseAdapter<ActivitiesAdapter.ViewHolder,
         }
 
         private String getIssueEventStr(String action){
-            EventPayload.IssueEventActionType actionType = EventPayload.IssueEventActionType.valueOf(action);
+            EventPayload.IssueEventActionType actionType;
+            try {
+                actionType = EventPayload.IssueEventActionType.valueOf(action);
+            } catch (IllegalArgumentException e) {
+                return getString(R.string.opened_issue_at);
+            }
             switch (actionType){
                 case assigned:
                     return getString(R.string.assigned_issue_at);
